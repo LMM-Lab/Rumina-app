@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    # command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--reload"]

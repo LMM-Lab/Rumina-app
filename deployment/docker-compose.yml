@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    env_file:
+      - ../backend/.env
+    ports:
+      - "8001:8001"
+#     depends_on:
+#       - database
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    env_file:
+      - ../frontend/.env  # 必要に応じてフロントエンド用環境変数
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend   # フロントエンドがバックエンドを前提にしている場合
+
+#   database:
+#     image: postgres:15
+#     environment:
+#       POSTGRES_USER: user
+#       POSTGRES_PASSWORD: password
+#       POSTGRES_DB: rumina_db
+#     volumes:
+#       - db_data:/var/lib/postgresql/data
+#     ports:
+#       - "5432:5432"
+
+# volumes:
+#   db_data:

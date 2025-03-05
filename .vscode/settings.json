@@ -1,0 +1,52 @@
+{
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "editor.formatOnSave": true,
+    "extensions.ignoreRecommendations": false,
+    "files.encoding": "utf8",
+    "files.eol": "\n",
+    "files.trimFinalNewlines": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.watcherExclude": {
+        "**/.git/**": true,
+        "**/.dvc/cache/**": true,
+        "**/.dvc/tmp/**": true,
+        "**/.venv/**": true,
+        "**/build/**": true,
+        "**/data/**": true,
+        "**/logs/**": true
+    },
+    "search.exclude": {
+        "**/.git": true,
+        "**/venv": true,
+        "**/data/**": true,
+        "**/data/**/*.md": false
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.tabSize": 4,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "always"
+        }
+    },
+    "autoDocstring.docstringFormat": "google",
+    "isort.args": [
+        "--profile",
+        "black"
+    ],
+    "black-formatter.args": [
+        "--line-length",
+        "79"
+    ],
+    "python.analysis.typeCheckingMode": "strict",
+    // disable disgnostic checks on external libraries
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingTypeStubs": "none",
+        "reportUnknownMemberType": "none",
+        "reportUnknownVariableType": "none",
+        "reportUnknownArgumentType": "none"
+    },
+    "python.languageServer": "Pylance"
+}

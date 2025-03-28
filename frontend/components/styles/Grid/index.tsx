@@ -1,19 +1,20 @@
+"use client";
 import styled from "styled-components";
 import Box from "../Box";
 
 type GridProps = {
-    $gridTemplateColumns?: string;
-    $gridTemplateRows?: string;
-    $gridTemplateAreas?: string;
-    $gridAutoColumns?: string;
-    $gridAutoRows?: string;
-    $gridAutoFlow?: string;
-    $justifyItems?: string;
-    $alignItems?: string;
-    $placeItems?: string;
-    $justifyContent?: string;
-    $alignContent?: string;
-    $placeContent?: string;
+  $gridTemplateColumns?: string;
+  $gridTemplateRows?: string;
+  $gridTemplateAreas?: string;
+  $gridAutoColumns?: string;
+  $gridAutoRows?: string;
+  $gridAutoFlow?: string;
+  $justifyItems?: string;
+  $alignItems?: string;
+  $placeItems?: string;
+  $justifyContent?: string;
+  $alignContent?: string;
+  $placeContent?: string;
 };
 
 const Grid = styled(Box) <GridProps>`

@@ -22,6 +22,7 @@ type TextProps = {
     $fontFamily?: string
     $fontWeight?: string
     $letterSpacing?: string
+    $Lineheight?: string
 }
 
 const Text = styled.p<TextProps>`
@@ -33,8 +34,8 @@ const Text = styled.p<TextProps>`
                     line-height: clamp(2.28rem, calc(2.28rem + 1.72*((100vw - 23.4375rem) / 66.5625)), 4rem);
                     width: 70%;
                     letter-spacing: -.03em;
-                    font-weight: 500;
-                    align: center;
+                    font-weight:460;
+                    text-align: center;
                 `
             case 'subtitle':
                 return css`
@@ -48,6 +49,7 @@ const Text = styled.p<TextProps>`
             case 'caption':
                 return css`
                     font-size: ${theme.fontSize.Small};
+                    line-height: 1.2499375rem;
                 `
         }
     }};
@@ -68,7 +70,9 @@ const Text = styled.p<TextProps>`
     margin-right: ${({ $marginRight }) => $marginRight};
     margin-left: ${({ $marginLeft }) => $marginLeft};
     margin-bottom: ${({ $marginBottom }) => $marginBottom};
+    text-aligin: ${({ $align }) => $align || "center"};
     display:inline-block;
+    line-height: ${({ $Lineheight }) => $Lineheight};
 `
 
 export default Text

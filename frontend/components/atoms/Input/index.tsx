@@ -29,6 +29,7 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
     placeholder?: string
     $textAlign?: string
     $isError?: boolean;
+    $background: string;
 }
 
 const InputCSS = styled.input<InputProps>`
@@ -53,8 +54,7 @@ const InputCSS = styled.input<InputProps>`
                     width: 30.375rem;
                     height: 2.35rem;
                     font-size: ${theme.fontSize.Small};
-                    border-radius: 10px;
-                    padding: 1.25rem 1.25rem;
+                    padding: 1.25rem 1.0rem;
                     color: #484B4A;
                 `
         }
@@ -80,6 +80,7 @@ const InputCSS = styled.input<InputProps>`
     padding-left:${({ $paddingLeft }) => $paddingLeft};
     text-align:${({ $textAlign }) => $textAlign};
     border-color: ${({ $isError }) => ($isError ? "#FF0000" : "#CCCCCC")};
+    background: ${({ $background }) => $background};
     &:focus {
         outline: none;
         border-color: ${({ $isError }) => ($isError ? "#FF6666" : "#6666FF")};

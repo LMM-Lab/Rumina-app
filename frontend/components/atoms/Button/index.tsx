@@ -34,7 +34,7 @@ type ButtonProps = {
     $border?: string;
     // その他
     type?: string;  // ボタンの type 属性 (submit, reset, button)
-    children?: string;
+    children?: React.ReactNode;
 }
 
 const Button = styled.button<ButtonProps>`
@@ -72,23 +72,35 @@ const Button = styled.button<ButtonProps>`
                 `
             case 'Icon':
                 return css`
-                    height: 70px;
-                    width: 70px;
-                    padding: 0 10px;
+                    display: flex;
+                    height: 50px;
+                    width: 50px;
+                    align-items: center;
+                    justify-content: center;
                     &:hover {
                         background-color:${theme.colors.isHover};
                     }
                 `
             case 'nav':
                 return css`
-                    font - size:${theme.fontSize.Small};
-                    border - radius: 0!important;
-                    width: 100 %;
+                    font-size:${theme.fontSize.Small};
+                    display: flex;
+                    border-radius: 70px;
+                    padding: 10px 10px;
+                    margin-left: 6px;
+                    width: 96%;
                     height: 38px;
+                    align-items: center;
                     background-color:${$isactive ? theme.colors.side_bar.isActive : theme.colors.sideBar};
-                    color:${$isactive ? theme.colors.side_bar.active_text : theme.colors.side_bar.text};
+                    color: ${$isactive ? theme.colors.side_bar.active_text : theme.colors.side_bar.text} !important;
                     &:hover{
                         background-color:${$isactive ? theme.colors.side_bar.isActive : theme.colors.side_bar.isHover} !important;
+                    }
+                    .icon-wrapper {
+                        width: 17px;
+                        height: 17px;
+                        display: flex;
+                        margin-right: 20px;
                     }
                 `
         }

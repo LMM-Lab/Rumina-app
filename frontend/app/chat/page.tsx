@@ -2,7 +2,9 @@
 import ChatPageLayout from "@components/templates/ChatPageLayout";
 
 const ChatPage = () => {
-    return <ChatPageLayout />;
+    return (
+        <ChatPageLayout />
+    );
 };
 
 export default ChatPage;

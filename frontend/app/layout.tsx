@@ -7,6 +7,7 @@ import theme from "../styles/theme";
 import SideBar from "@components/organisms/SideBar";
 import styled from "styled-components";
 
+
 const LayoutContainer = styled.div`
   display: flex;
   width: 100vw;

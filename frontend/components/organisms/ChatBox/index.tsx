@@ -1,8 +1,10 @@
 "use client";
+import { useEffect } from "react";
 import styled from "styled-components";
 import MessageBubble from "@components/molecules/MessageBubble";
 import ChatInput from "@components/molecules/ChatInput";
 import Flex from "@components/styles/Flex";
+import { useAudioChat } from "@features/chat/context/AudioChatContext";
 
 const ChatContainer = styled.div`
     width: 100%;
@@ -24,30 +26,23 @@ const Messages = styled.div`
 `;
 
 const ChatBox = () => {
+    const { isRecording, toggleRecording, transcriptions } = useAudioChat();
+    useEffect(() => {
+        console.log("更新された transcriptions:", transcriptions);
+    }, [transcriptions]);
     return (
         <ChatContainer>
             <Messages>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？今回は何について議論しましょう？</MessageBubble>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？</MessageBubble>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？</MessageBubble>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？</MessageBubble>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？</MessageBubble>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？</MessageBubble>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？</MessageBubble>
-                <MessageBubble $isUser={true}>こんにちは！</MessageBubble>
-                <MessageBubble $isUser={false}>こんにちは！どのようにお手伝いできますか？</MessageBubble>
+                {transcriptions.map((msg, index) => (
+                    <MessageBubble key={index} $isUser={false}>
+                        {msg}
+                    </MessageBubble>
+                ))}
             </Messages>
             <Flex $justify_content="center" $margin="3px">
                 <ChatInput />
             </Flex>
-        </ChatContainer >
+        </ChatContainer>
     );
 };
 

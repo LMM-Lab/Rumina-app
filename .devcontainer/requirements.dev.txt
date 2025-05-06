@@ -2,3 +2,8 @@ fastapi
 uvicorn[standard]
 webrtcvad
 openai
+numpy
+scipy
+openai-whisper
+TTS
+TTS[ja]

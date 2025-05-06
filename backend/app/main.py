@@ -1,4 +1,5 @@
-from api.websocket import router as websocket_router
+from api.ws_audio import router as websocket_router
+from api.ws_image import router as image_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -21,6 +22,7 @@ def root():
 
 # WebSocketルートの登録
 app.include_router(websocket_router)
+app.include_router(image_router)
 
 if __name__ == "__main__":
     import uvicorn

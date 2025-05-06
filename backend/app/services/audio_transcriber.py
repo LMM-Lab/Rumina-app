@@ -1,5 +1,7 @@
 import asyncio
+import re
 import time
+from collections import Counter
 from tempfile import NamedTemporaryFile
 
 import numpy as np
@@ -31,6 +33,9 @@ class WhisperAudioTranscriber:
         self._running = False
         self._task: asyncio.Task[None] | None = None
 
+        self.latest_image_base64 = None
+        self.result_bundle_queue = asyncio.Queue()
+
     def compute_rms(self, data: NDArray[np.float32]) -> float:
         return np.sqrt(np.mean(np.square(data)))
 
@@ -50,6 +55,9 @@ class WhisperAudioTranscriber:
         )
         await self.audio_queue.put(np_chunk)
 
+    def update_latest_image(self, image_base64: str):
+        self.latest_image_base64 = image_base64
+
     async def start(self):
         if not self._running:
             print("▶️ Improved transcription loop を開始")
@@ -68,6 +76,7 @@ class WhisperAudioTranscriber:
         while self._running:
             audio_data = []
             silence_start = None
+            image_at_trigger = None
 
             try:
                 first_chunk = await asyncio.wait_for(
@@ -89,6 +98,7 @@ class WhisperAudioTranscriber:
 
             print("🎤 音声検出、録音開始")
             audio_data.append(first_chunk)
+            image_at_trigger = self.latest_image_base64
 
             while self._running:
                 try:
@@ -137,6 +147,7 @@ class WhisperAudioTranscriber:
 
             audio_segment = np.concatenate(audio_data)
             print("🏋️ Whisperで文字起こし開始")
+            image_snapshot = image_at_trigger
             with NamedTemporaryFile(suffix=".wav", delete=True) as tmp_file:
                 wav.write(
                     tmp_file.name,
@@ -148,4 +159,31 @@ class WhisperAudioTranscriber:
                 transcription_text = result["text"]
                 print("🔢 文字起こし結果:", transcription_text)
                 # 文字起こし結果を出力キューに投入
-                await self.result_queue.put(transcription_text)
+                await self.result_queue.put(transcription_text)  # audio-only用
+                await self.result_bundle_queue.put(
+                    {  # image対応用
+                        "text": transcription_text,
+                        "image": image_snapshot,
+                    }
+                )
+
+
+def is_invalid_transcription(text: str, repeat_threshold: int = 5) -> bool:
+    if not text.strip():
+        return True  # 空文字
+
+    # 単語ベースでの繰り返しも試みる（日本語形態素解析なしで文字nグラムで近似）
+    ngram_lengths = [4, 6, 8]  # 短〜中程度の語の繰り返しをカバー
+    for n in ngram_lengths:
+        chunks = [text[i : i + n] for i in range(0, len(text) - n + 1)]
+        counts = Counter(chunks)
+        for token, count in counts.items():
+            if count >= repeat_threshold:
+                print(f"🚫 繰り返し検出: '{token}' が {count} 回")
+                return True
+
+    # 同一文字の連続（例: ああああああ）
+    if re.search(r"(.)\1{6,}", text):
+        return True
+
+    return False

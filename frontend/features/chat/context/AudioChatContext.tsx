@@ -1,17 +1,18 @@
 "use client";
-
 import React, {
     createContext,
     useContext,
     ReactNode,
     useEffect,
 } from "react";
+
 import { useAudio } from "../hooks/useAudio";
+import type { ChatMessage } from "../hooks/useAudio";
 
 interface AudioChatContextProps {
     isRecording: boolean;
     toggleRecording: () => void;
-    transcriptions: string[];
+    transcriptions: ChatMessage[];
 }
 
 const AudioChatContext = createContext<AudioChatContextProps | undefined>(

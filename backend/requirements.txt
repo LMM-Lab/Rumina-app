@@ -1,3 +1,5 @@
 fastapi
 uvicorn[standard]
 webrtcvad
+openai
+openai-whisper

@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import MediaControl from "@components/molecules/MediaControl";
 
@@ -22,10 +23,45 @@ const StyledVideo = styled.video`
 
 
 const UserVideo = () => {
+    const [isCameraOn, setIsCameraOn] = useState(false);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (error) {
+            console.error("カメラの起動に失敗:", error);
+        }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+    };
+
+    // トグル切り替え時
+    useEffect(() => {
+        if (isCameraOn) {
+            startCamera();
+        } else {
+            stopCamera();
+        }
+    }, [isCameraOn]);
+
     return (
         <VideoContainer>
-            <StyledVideo />
-            <MediaControl />
+            <StyledVideo ref={videoRef} autoPlay muted playsInline />
+            <MediaControl onCameraToggle={setIsCameraOn} />
         </VideoContainer>
     );
 };

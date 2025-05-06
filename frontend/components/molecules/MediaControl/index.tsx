@@ -4,7 +4,12 @@ import Flex from "@components/styles/Flex";
 import Tooltip from "@components/atoms/Tooltip";
 import { useAudioChat } from "@features/chat/context/AudioChatContext"
 
-const MediaControl: React.FC = () => {
+type MediaControlProps = {
+    onCameraToggle?: (state: boolean) => void;
+};
+
+
+const MediaControl: React.FC<MediaControlProps> = ({ onCameraToggle }) => {
     const { isRecording, toggleRecording } = useAudioChat();
     return (
         <Flex $gap="1.5rem" $align_items="center" $margin="5px">
@@ -12,7 +17,10 @@ const MediaControl: React.FC = () => {
             <IconToggle
                 onIcon="/icons/video_on.png"
                 offIcon="/icons/video_off.png"
-                onToggle={(state) => console.log("Video:", state)}
+                onToggle={(state) => {
+                    console.log("Video:", state);
+                    onCameraToggle?.(state);
+                }}
             />
 
             {/* マイクのオン/オフ */}

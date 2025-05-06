@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import styled from "styled-components";
 import MessageBubble from "@components/molecules/MessageBubble";
 import ChatInput from "@components/molecules/ChatInput";
@@ -27,6 +27,10 @@ const Messages = styled.div`
 
 const ChatBox = () => {
     const { isRecording, toggleRecording, transcriptions } = useAudioChat();
+    const bottomRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [transcriptions]);
     useEffect(() => {
         console.log("更新された transcriptions:", transcriptions);
     }, [transcriptions]);
@@ -34,10 +38,11 @@ const ChatBox = () => {
         <ChatContainer>
             <Messages>
                 {transcriptions.map((msg, index) => (
-                    <MessageBubble key={index} $isUser={false}>
-                        {msg}
+                    <MessageBubble key={index} $isUser={msg.isUser}>
+                        {msg.text}
                     </MessageBubble>
                 ))}
+                <div ref={bottomRef} />
             </Messages>
             <Flex $justify_content="center" $margin="3px">
                 <ChatInput />

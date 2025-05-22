@@ -8,6 +8,7 @@
         "lint": "next lint"
     },
     "dependencies": {
+        "@react-three/drei": "^9.80.0",
         "@types/styled-components": "^5.1.34",
         "lucide-react": "^0.483.0",
         "next": "13.4.4",

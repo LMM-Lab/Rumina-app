@@ -2,6 +2,7 @@ import base64
 import io
 from collections import defaultdict
 
+import torch
 from torch.serialization import add_safe_globals
 from TTS.utils.radam import RAdam
 
@@ -12,7 +13,12 @@ from TTS.api import TTS
 
 class TTSGenerator:
     def __init__(self):
-        self.tts = TTS(model_name="tts_models/ja/kokoro/tacotron2-DDC")
+        use_gpu = torch.cuda.is_available()
+        self.tts = TTS(
+            model_name="tts_models/ja/kokoro/tacotron2-DDC",
+            gpu=use_gpu,
+            progress_bar=False,
+        )
 
     def synthesize_to_base64(self, text: str) -> str:
         """音声をBase64形式で返す"""

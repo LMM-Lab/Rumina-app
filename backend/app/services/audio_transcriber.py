@@ -5,6 +5,7 @@ from collections import Counter
 from tempfile import NamedTemporaryFile
 
 import numpy as np
+import torch
 import scipy.io.wavfile as wav
 import webrtcvad
 import whisper
@@ -14,7 +15,8 @@ from numpy.typing import NDArray
 class WhisperAudioTranscriber:
     def __init__(self, sample_rate: int = 16000, use_vad: bool = True):
         self.sample_rate = sample_rate
-        self.model = whisper.load_model("base")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = whisper.load_model("base", device=device)
         # 非同期処理用の asyncio.Queue を使用
         self.audio_queue = asyncio.Queue()
         # 文字起こし結果をクライアントに送信するためのキュー
@@ -155,7 +157,11 @@ class WhisperAudioTranscriber:
                     (audio_segment * 32767).astype(np.int16),
                 )
                 tmp_file.flush()
-                result = self.model.transcribe(tmp_file.name, language="ja")
+                result = self.model.transcribe(
+                    tmp_file.name,
+                    language="ja",
+                    fp16=torch.cuda.is_available()
+                )
                 transcription_text = result["text"]
                 print("🔢 文字起こし結果:", transcription_text)
                 # 文字起こし結果を出力キューに投入

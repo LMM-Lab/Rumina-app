@@ -1,4 +1,5 @@
 import { useImageServerVad } from "./useImageServerVad";
+import { useImageClientVad } from "./useImageClientVad";
 
 
 export type ChatMessage = {
@@ -14,9 +15,9 @@ export type UseImageHook = {
     transcriptions: ChatMessage[];
 };
 
-export const useImage = (mode: UseImageMode = "server-vad"): UseImageHook => {
+export const useImage = (mode: UseImageMode = "client-vad"): UseImageHook => {
     if (mode === "server-vad") {
         return useImageServerVad();
     }
-    return useImageServerVad(); //TODO:後で処理を変える
+    return useImageClientVad();
 };

@@ -5,8 +5,8 @@ from collections import Counter
 from tempfile import NamedTemporaryFile
 
 import numpy as np
-import torch
 import scipy.io.wavfile as wav
+import torch
 import webrtcvad
 import whisper
 from numpy.typing import NDArray
@@ -160,7 +160,7 @@ class WhisperAudioTranscriber:
                 result = self.model.transcribe(
                     tmp_file.name,
                     language="ja",
-                    fp16=torch.cuda.is_available()
+                    fp16=torch.cuda.is_available(),
                 )
                 transcription_text = result["text"]
                 print("🔢 文字起こし結果:", transcription_text)

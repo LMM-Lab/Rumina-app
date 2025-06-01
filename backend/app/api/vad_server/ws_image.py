@@ -2,14 +2,16 @@ import asyncio
 import base64
 from pathlib import Path
 
-from api.websocket_transcription import transcriber_instance
+from api.modules.transcribers.whisper_transcriber_in_vad import (
+    WhisperAudioTranscriber,
+)
+from api.utils.invalid_transcription import is_invalid_transcription
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from services.audio_transcriber import is_invalid_transcription
 from services.openai_chat import get_multimodal_response
 from services.tts_generator import TTSGenerator
 
 tts_instance = TTSGenerator()
-
+transcriber_instance = WhisperAudioTranscriber(use_vad=True)
 router = APIRouter()
 
 MAX_HISTORY = 5

@@ -1,5 +1,6 @@
-from api.ws_audio import router as websocket_router
-from api.ws_image import router as image_router
+from api.vad_client.m_image_router import router as m_image_router
+from api.vad_server.ws_audio import router as websocket_router
+from api.vad_server.ws_image import router as image_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -23,6 +24,7 @@ def root():
 # WebSocketルートの登録
 app.include_router(websocket_router)
 app.include_router(image_router)
+app.include_router(m_image_router)
 
 if __name__ == "__main__":
     import uvicorn

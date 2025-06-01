@@ -50,9 +50,8 @@ const Button = styled.button<ButtonProps>`
                     border-radius: 50px;
                     padding:10px 10px;
                     display: block;
-                    background-color: ${theme.colors.Button};
                     &:hover{
-                        background-color:${theme.colors.isHover};
+                        background-color: ${$hover_color || theme.colors.isHover};
                     }
                 `
             case 'Toggle':

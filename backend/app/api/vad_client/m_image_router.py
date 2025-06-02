@@ -48,15 +48,15 @@ async def we_image_endpoint(websocket: WebSocket):
 
     # STEP 2️⃣ モデルに応じたインスタンス選択
     transcriber_instance = get_transcriber_instance(model_name)
+    print("now")
+    # 文字起こし処理開始
+    await transcriber_instance.start()
     multimodal_response_func = get_multimodal_response_func(model_name)
-    tts_instance = get_tts_instance(model_name)
+    m_tts_instance = get_tts_instance(model_name)
 
     transcriber_instance.set_silence_threshold(
         (vad_silence_threshold_ms / 1000.0) - 0.3  # 余裕を持たせる
     )
-
-    # 文字起こし処理開始
-    await transcriber_instance.start()
 
     # ★ 音声バッファ
     audio_buffer = bytearray()
@@ -178,9 +178,9 @@ async def we_image_endpoint(websocket: WebSocket):
                     history=history_messages,
                 )
 
-                # TTS → base64音声
+                # # TTS → base64音声
                 audio_base64 = await asyncio.to_thread(
-                    tts_instance.synthesize_to_base64, response
+                    m_tts_instance.synthesize_to_base64, response
                 )
 
                 # 応答送信

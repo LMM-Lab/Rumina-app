@@ -25,9 +25,11 @@ def get_multimodal_response_func(model_name: str):
         raise ValueError(f"Unsupported model: {model_name}")
 
 
+tts_instance = TTSGenerator()
+
+
 def get_tts_instance(model_name: str):
     if model_name.startswith("rumina-m1"):
-        tts_instance = TTSGenerator()
         return tts_instance
     else:
         raise ValueError(f"Unsupported model: {model_name}")

@@ -55,27 +55,42 @@ export const useImageClientVad = (onStartSpeaking?: () => void, onStopSpeaking?:
     };
 
     const stopRecording = () => {
-        if (audioContextRef.current) audioContextRef.current.close();
+        console.log("🎙️ stopRecording 開始 (ClientVAD)");
+
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+
         if (mediaStreamRef.current) {
             mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+            mediaStreamRef.current = null;
         }
+
         if (vadIntervalRef.current) {
             clearInterval(vadIntervalRef.current);
             vadIntervalRef.current = null;
         }
+
         if (workletNodeRef.current) {
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
         }
+
         if (socketRef.current) {
             socketRef.current.close();
             socketRef.current = null;
         }
+
+        // ✅ preRollBufferRef は clientVAD の場合は必要！
         preRollBufferRef.current = [];
 
         setIsRecording(false);
         setIsSpeaking(false);
+
+        console.log("🎙️ stopRecording 完了 (ClientVAD)");
     };
+
 
     const captureCurrentFrame = async (): Promise<string> => {
         const video = document.querySelector("video") as HTMLVideoElement;

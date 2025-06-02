@@ -17,18 +17,36 @@ export const useImageServerVad = () => {
     const socketRef = useRef<WebSocket | null>(null);
 
     const stopRecording = useCallback(() => {
-        if (workletNodeRef.current) {
-            workletNodeRef.current.port.postMessage({ type: "stop" });
-            workletNodeRef.current.disconnect();
+        console.log("🎙️ stopRecording 開始 (ServerVAD)");
+        stopImageStreaming();
+
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
         }
-        if (audioContextRef.current) audioContextRef.current.close();
+
         if (mediaStreamRef.current) {
             mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+            mediaStreamRef.current = null;
         }
-        if (socketRef.current) socketRef.current.close();
-        stopImageStreaming();
+
+        if (workletNodeRef.current) {
+            workletNodeRef.current.disconnect();
+            workletNodeRef.current = null;
+        }
+
+        if (socketRef.current) {
+            socketRef.current.close();
+            socketRef.current = null;
+        }
+
         setIsRecording(false);
-    }, []);
+
+        console.log("🎙️ stopRecording 完了 (ServerVAD)");
+    }, []); // ✅ 必ず依存配列は []（refはcurrent経由なのでOK）
+
+
+
 
     const stopImageStreaming = () => {
         if (imageCaptureIntervalRef.current) {
@@ -47,6 +65,7 @@ export const useImageServerVad = () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
             mediaStreamRef.current = stream;
+            setIsRecording(true);
 
             const audioContext = new AudioContext({ sampleRate: 16000 });
             audioContextRef.current = audioContext;
@@ -110,16 +129,15 @@ export const useImageServerVad = () => {
                 }
             };
 
-            socket.onopen = () => {
-                setIsRecording(true);
-                startImageStreaming();
-            };
+            socket.onopen = () => startImageStreaming();
 
             socket.onerror = (e) => {
                 console.error("WebSocket error:", e);
+                stopRecording();
             };
         } catch (error) {
             console.error("録音の開始に失敗しました:", error);
+            setIsRecording(false);
         }
     };
 
@@ -154,7 +172,7 @@ export const useImageServerVad = () => {
     };
 
     const toggleRecording = () => {
-        if (isRecording) {
+        if (isRecording || socketRef.current) {
             stopRecording();
         } else {
             startRecording();

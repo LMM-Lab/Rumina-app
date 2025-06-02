@@ -6,10 +6,11 @@ import styled, { useTheme } from "styled-components";
 import CharacterPanel from "@components/organisms/CharacterPanel";
 import ModelSelector from "@components/molecules/ModelSelector";
 import { useState } from "react"; // ← 追加
+import { useAudioChat } from "@features/chat/context/AudioChatContext";
 
 const AIPanel = () => {
     const theme = useTheme();
-    const [selectedModel, setSelectedModel] = useState("rumina-m1"); // ← state 定義
+    const { selectedModel, setSelectedModel } = useAudioChat(); // ← state 定義
 
     return (
         <Box $width="50%" $height="100%">

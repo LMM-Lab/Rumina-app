@@ -1,12 +1,13 @@
 'use client'
 import styled from "styled-components";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type IconToggleProps = {
     onIcon: string;  // オンのときのアイコン
     offIcon: string; // オフのときのアイコン
     backgroundColor?: string;
     initialState?: boolean;
+    isOn?: boolean;  // ★ 外部からの状態（追加！）
     onToggle?: (state: boolean) => void; // 状態変化のイベント
 };
 
@@ -29,12 +30,19 @@ const ToggleWrapper = styled.button<{ $backgroundColor?: string }>`
     }
 `;
 
-const IconToggle = ({ onIcon, offIcon, backgroundColor, initialState = false, onToggle }: IconToggleProps) => {
-    const [isOn, setIsOn] = useState(initialState);
+const IconToggle = ({ onIcon, offIcon, backgroundColor, initialState = false, isOn, onToggle }: IconToggleProps) => {
+    const [internalState, setInternalState] = useState(initialState);
+
+    // ★ 外部 isOn が変わったら同期する
+    useEffect(() => {
+        if (typeof isOn === "boolean") {
+            setInternalState(isOn);
+        }
+    }, [isOn]);
 
     const handleClick = () => {
-        const newState = !isOn;
-        setIsOn(newState);
+        const newState = !internalState;
+        setInternalState(newState);
         if (onToggle) {
             onToggle(newState);
         }
@@ -42,7 +50,7 @@ const IconToggle = ({ onIcon, offIcon, backgroundColor, initialState = false, on
 
     return (
         <ToggleWrapper onClick={handleClick} $backgroundColor={backgroundColor}>
-            <img src={isOn ? onIcon : offIcon} alt="toggle icon" />
+            <img src={internalState ? onIcon : offIcon} alt="toggle icon" />
         </ToggleWrapper>
     );
 };

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import ModelSelectorButton from "@components/molecules/ModelSelectorButton";
 import ModelSelectorPanel from "@components/molecules/ModelSelectorPanel";
+import { useAudioChat } from "@features/chat/context/AudioChatContext";
 
 type ModelSelectorProps = {
     selectedModel: string;
@@ -9,20 +10,27 @@ type ModelSelectorProps = {
 
 const models = [
     { key: "rumina-m1", label: "M1", description: "視覚入力も対応した標準モデル" },
-    { key: "rumina-m2", label: "M2", description: "翻訳精度が高くなったモデル" },
-    { key: "rumina-m1-pro", label: "M1-Pro", description: "より精度の高いモデル" },
+    { key: "rumina-m1-server", label: "m1-server", description: "視覚入力も対応した初期モデル" },
+    { key: "rumina-c1-server", label: "c1-server", description: "軽量かつ高速な言語入力のみモデル" },
 ];
 
 export const ModelSelector = ({ selectedModel, onSelectModel }: ModelSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    const { isRecording, toggleRecording, setSelectedModel } = useAudioChat();
+
     const toggleDropdown = () => {
         setIsOpen((prev) => !prev);
     };
 
+    const handleModelChange = (newModel: string) => {
+        if (isRecording) toggleRecording();      // 必ず現行フックを停止
+        setSelectedModel(newModel);              // ← Context の setter を直に呼ぶ
+    };
+
     const handleSelect = (modelKey: string) => {
-        onSelectModel(modelKey);
+        handleModelChange(modelKey);
         setIsOpen(false);
     };
 

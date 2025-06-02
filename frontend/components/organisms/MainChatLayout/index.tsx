@@ -8,8 +8,8 @@ import { AudioChatProvider } from "@features/chat/context/AudioChatContext";
 const MainChatLayout = () => {
     return (
         <Flex $width="100%" $height="100vh">
-            <AIPanel />
             <AudioChatProvider>
+                <AIPanel />
                 <UserPanel />
             </AudioChatProvider>
         </Flex>

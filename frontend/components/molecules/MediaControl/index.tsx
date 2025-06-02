@@ -28,7 +28,7 @@ const MediaControl: React.FC<MediaControlProps> = ({ onCameraToggle }) => {
                 onIcon="/icons/mic_on.png"
                 offIcon="/icons/mic_off.png"
                 backgroundColor="#EEEEEE"
-                // defaultState={isRecording} // 状態反映（オプション）
+                isOn={isRecording}  // 状態反映（オプション）
                 onToggle={() => toggleRecording()} // 録音トグル
             />
 

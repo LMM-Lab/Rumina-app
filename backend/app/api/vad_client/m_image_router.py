@@ -1,12 +1,9 @@
 import asyncio
-import base64
 import json
 import uuid
-from pathlib import Path
 
 import numpy as np
 import scipy.io.wavfile as wav
-import scipy.io.wavfile as wavfile
 from api.utils.invalid_transcription import is_invalid_transcription
 from api.utils.model_selector import (
     get_multimodal_response_func,
@@ -48,7 +45,6 @@ async def we_image_endpoint(websocket: WebSocket):
 
     # STEP 2️⃣ モデルに応じたインスタンス選択
     transcriber_instance = get_transcriber_instance(model_name)
-    print("now")
     # 文字起こし処理開始
     await transcriber_instance.start()
     multimodal_response_func = get_multimodal_response_func(model_name)

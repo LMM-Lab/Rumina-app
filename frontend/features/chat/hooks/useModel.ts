@@ -19,13 +19,14 @@ export type UseModelHook = {
 
 export const useModel = (
     modelMode: UseModelMode = "image",
-    vadMode: vadMode = "client-vad"
+    vadMode: vadMode = "client-vad",
+    modelKey: string = "rumina-m1"
 ): UseModelHook => {
     if (modelMode === "image") {
         if (vadMode === "server-vad") {
             return useImageServerVad();
         } else {
-            return useImageClientVad();
+            return useImageClientVad(modelKey);
         }
     } else {
         return useAudioOnly();

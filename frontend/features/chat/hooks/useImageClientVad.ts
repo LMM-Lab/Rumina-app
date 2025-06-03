@@ -5,7 +5,11 @@ export type ChatMessage = {
     isUser: boolean;
 };
 
-export const useImageClientVad = (onStartSpeaking?: () => void, onStopSpeaking?: () => void) => {
+export const useImageClientVad = (
+    modelKey: string = "rumina-m1",
+    onStartSpeaking?: () => void,
+    onStopSpeaking?: () => void
+) => {
     const instanceId = useRef(Math.random());
     const [isRecording, setIsRecording] = useState(false);
     const [transcriptions, setTranscriptions] = useState<ChatMessage[]>([]);
@@ -130,7 +134,7 @@ export const useImageClientVad = (onStartSpeaking?: () => void, onStopSpeaking?:
             socket.onopen = () => {
                 socket.send(JSON.stringify({
                     type: "init",
-                    model: "rumina-m1",
+                    model: modelKey,
                     vad_silence_threshold: 1000,
                 }));
                 console.log("✅ WebSocket 接続 & init メッセージ送信");

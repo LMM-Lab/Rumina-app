@@ -21,10 +21,10 @@ const AudioChatContext = createContext<AudioChatContextProps | undefined>(undefi
 export const AudioChatProvider = ({ children }: { children: ReactNode }) => {
     const [selectedModel, setSelectedModel] = useState<string>("rumina-m1");
 
-    const { Mode, vadMode } = useMemo(() => getModeFromModel(selectedModel), [selectedModel]);
+    const { Mode, vadMode, modelKey } = useMemo(() => getModeFromModel(selectedModel), [selectedModel]);
 
     const audioHook = useAudioOnly();
-    const imageClientHook = useImageClientVad();
+    const imageClientHook = useImageClientVad(modelKey);
     const imageServerHook = useImageServerVad();
 
     // 🔥 ① 前回の hookToUse を useRef に保持する

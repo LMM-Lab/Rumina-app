@@ -15,6 +15,7 @@ export const useImageClientVad = (
     const [transcriptions, setTranscriptions] = useState<ChatMessage[]>([]);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
+    const [isVoiceActive, setIsVoiceActive] = useState(false);
 
     const audioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -44,6 +45,7 @@ export const useImageClientVad = (
     const setSpeakingState = (val: boolean) => {
         isSpeakingRef.current = val;
         setIsSpeaking(val);
+        setIsVoiceActive(val);
     };
 
     const sendAudioFrameToServer = (pcmFrame: Float32Array, type: string = "active_audio_chunk") => {
@@ -92,6 +94,7 @@ export const useImageClientVad = (
 
         setIsRecording(false);
         setIsSpeaking(false);
+        setIsVoiceActive(false);
 
         console.log("🎙️ stopRecording 完了 (ClientVAD)");
     };
@@ -209,7 +212,7 @@ export const useImageClientVad = (
                 const rms = Math.sqrt(
                     dataArrayRef.current.reduce((sum, val) => sum + (val - 128) ** 2, 0) / dataArrayRef.current.length
                 );
-                const threshold = 5;
+                const threshold = 6;
                 const now = Date.now();
 
                 const speechFrameThreshold = 3;
@@ -293,6 +296,7 @@ export const useImageClientVad = (
         isRecording,
         isSpeaking,
         isThinking,
+        isVoiceActive,
         toggleRecording,
         transcriptions,
     };

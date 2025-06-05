@@ -26,7 +26,8 @@ const Messages = styled.div`
 `;
 
 const ChatBox = () => {
-    const { isRecording, toggleRecording, transcriptions } = useAudioChat();
+    const { isRecording, isSpeaking, isThinking, toggleRecording, transcriptions } = useAudioChat();
+    console.log("isThinking:", isThinking);
     const bottomRef = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -42,6 +43,9 @@ const ChatBox = () => {
                         {msg.text}
                     </MessageBubble>
                 ))}
+                {isThinking && (
+                    <MessageBubble $isUser={false} $isTyping />
+                )}
                 <div ref={bottomRef} />
             </Messages>
             <Flex $justify_content="center" $margin="3px">

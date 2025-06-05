@@ -14,6 +14,7 @@ export const useImageClientVad = (
     const [isRecording, setIsRecording] = useState(false);
     const [transcriptions, setTranscriptions] = useState<ChatMessage[]>([]);
     const [isSpeaking, setIsSpeaking] = useState(false);
+    const [isThinking, setIsThinking] = useState(false);
 
     const audioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -146,6 +147,10 @@ export const useImageClientVad = (
                     const { type, message, audio_base64 } = data;
 
                     console.log(`[受信] type: ${type}, message: ${message}`);
+
+                    // === タイピング状態ハンドリング ===
+                    if (type === "transcription") setIsThinking(true);
+                    if (type === "ai_response") setIsThinking(false);
 
                     if (message) {
                         setTranscriptions((prev) => {
@@ -287,6 +292,7 @@ export const useImageClientVad = (
         instanceId: instanceId.current,
         isRecording,
         isSpeaking,
+        isThinking,
         toggleRecording,
         transcriptions,
     };

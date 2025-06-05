@@ -12,7 +12,7 @@ type MediaControlProps = {
 const MediaControl: React.FC<MediaControlProps> = ({ onCameraToggle }) => {
     const { isRecording, toggleRecording } = useAudioChat();
     return (
-        <Flex $gap="1.5rem" $align_items="center" $margin="5px">
+        <Flex $gap="1.5rem" $align_items="center" $margin="5px" $marginTop="3%">
             {/* ビデオのオン/オフ */}
             <IconToggle
                 onIcon="/icons/video_on.png"

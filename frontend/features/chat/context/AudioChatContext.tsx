@@ -12,6 +12,8 @@ interface AudioChatContextProps {
     selectedModel: string;
     setSelectedModel: (model: string) => void;
     isRecording: boolean;
+    isThinking: boolean;
+    isSpeaking: boolean;
     toggleRecording: () => void;
     transcriptions: ChatMessage[];
 }
@@ -41,7 +43,7 @@ export const AudioChatProvider = ({ children }: { children: ReactNode }) => {
         hookToUse = vadMode === "server-vad" ? imageServerHook : imageClientHook;
     }
 
-    const { isRecording, toggleRecording, transcriptions } = hookToUse;
+    const { isRecording, toggleRecording, transcriptions, isThinking } = hookToUse;
 
     const modeKey = `${Mode}-${vadMode}`;
 
@@ -60,6 +62,7 @@ export const AudioChatProvider = ({ children }: { children: ReactNode }) => {
                 selectedModel,
                 setSelectedModel,
                 isRecording,
+                isThinking,
                 toggleRecording,
                 transcriptions,
             }}

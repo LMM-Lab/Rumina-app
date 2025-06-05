@@ -9,6 +9,7 @@ export const useImageServerVad = () => {
     const instanceId = useRef(Math.random());
     const [isRecording, setIsRecording] = useState(false);
     const [transcriptions, setTranscriptions] = useState<ChatMessage[]>([]);
+    const [isThinking, setIsThinking] = useState(false);
 
     const audioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -78,6 +79,10 @@ export const useImageServerVad = () => {
                 try {
                     const data = JSON.parse(event.data);
                     const { type, message, audio_base64 } = data;
+
+                    // === タイピング状態ハンドリング ===
+                    if (type === "transcription") setIsThinking(true);
+                    if (type === "ai_response") setIsThinking(false);
 
                     console.log(`[受信] type: ${type}, message: ${message}`);
 
@@ -182,6 +187,7 @@ export const useImageServerVad = () => {
     return {
         instanceId: instanceId.current,
         isRecording,
+        isThinking,
         toggleRecording,
         transcriptions,
     };

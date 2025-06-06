@@ -23,6 +23,7 @@ export const useImageClientVad = (
     const dataArrayRef = useRef<Uint8Array | null>(null);
     const vadIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const speakingStartTimeRef = useRef<number | null>(null);
     const silenceStartTimeRef = useRef<number | null>(null);
@@ -46,6 +47,11 @@ export const useImageClientVad = (
         isSpeakingRef.current = val;
         setIsSpeaking(val);
         setIsVoiceActive(val);
+
+        if (val && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+        }
     };
 
     const sendAudioFrameToServer = (pcmFrame: Float32Array, type: string = "active_audio_chunk") => {
@@ -87,6 +93,12 @@ export const useImageClientVad = (
         if (socketRef.current) {
             socketRef.current.close();
             socketRef.current = null;
+        }
+
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+            audioRef.current = null;
         }
 
         // ✅ preRollBufferRef は clientVAD の場合は必要！
@@ -158,23 +170,27 @@ export const useImageClientVad = (
                     if (message) {
                         setTranscriptions((prev) => {
                             const newMessage: ChatMessage = {
-                                text: message,
-                                isUser: type === "transcription",
-                            };
+                                text: (type === "assistant_final" ? "🔇 " : "") + message,
+                                isUser: type === "transcription"
+                            }
                             return [...prev, newMessage];
                         });
                     }
 
                     if (audio_base64) {
-                        const audioBlob = new Blob(
-                            [Uint8Array.from(atob(audio_base64), (c) => c.charCodeAt(0))],
+                        // ★ 先に鳴っている音声を停止
+                        if (audioRef.current) {
+                            audioRef.current.pause();
+                            audioRef.current.src = "";
+                        }
+                        const blob = new Blob(
+                            [Uint8Array.from(atob(audio_base64), c => c.charCodeAt(0))],
                             { type: "audio/wav" }
                         );
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        const audio = new Audio(audioUrl);
-                        await audio.play().catch((err) => {
-                            console.error("音声の再生に失敗しました:", err);
-                        });
+                        const url = URL.createObjectURL(blob);
+                        const audio = new Audio(url);
+                        audioRef.current = audio;          // ← 保持
+                        await audio.play().catch(err => console.error("音声再生失敗:", err));
                     }
                 } catch (e) {
                     console.error("WebSocketメッセージの解析に失敗:", e);
@@ -259,6 +275,7 @@ export const useImageClientVad = (
                             console.log("[VAD] 話し終わりを確定");
                             setSpeakingState(false);
                             onStopSpeaking?.();
+
 
                             if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                                 socketRef.current.send(JSON.stringify({ type: "active_audio_end" }));

@@ -1,6 +1,10 @@
 import asyncio
+import base64
+import io
 import json
 import uuid
+from dataclasses import dataclass, field
+from typing import Optional
 
 import numpy as np
 import scipy.io.wavfile as wav
@@ -15,203 +19,211 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 router = APIRouter()
 
 MAX_HISTORY = 5
-conversation_history = []
+conversation_history: list[dict] = []
 
 
-def save_debug_wav(
-    pcm_bytes: bytes, sample_rate: int = 16000, prefix: str = "debug_audio"
-):
-    """デバッグ用に PCM データを WAV ファイルとして保存"""
+# ───────── データクラス ─────────
+@dataclass
+class UtteranceTask:
+    id: str
+    speech_id: int
+    cancel_event: asyncio.Event = field(default_factory=asyncio.Event)
+
+
+# ───────── ユーティリティ（任意）─────────
+def save_debug_wav(pcm: bytes, sr: int = 16_000, prefix="debug"):
     try:
-        save_path = f"{prefix}_{uuid.uuid4().hex[:8]}.wav"
-        audio_np = np.frombuffer(pcm_bytes, dtype=np.int16)
-        wav.write(save_path, sample_rate, audio_np)
-        print(f"💾 デバッグ音声を保存しました: {save_path}")
+        fname = f"{prefix}_{uuid.uuid4().hex[:8]}.wav"
+        wav.write(fname, sr, np.frombuffer(pcm, np.int16))
+        print("💾 save", fname)
     except Exception as e:
-        print(f"⚠️ save_debug_wav エラー: {e}")
+        print("save_debug_wav error:", e)
 
 
+# ───────── メイン WS ハンドラ ─────────
 @router.websocket("/ws/m/image")
-async def we_image_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    print("✅ WebSocket 接続を受け付けました")
+async def we_image_endpoint(ws: WebSocket):
+    await ws.accept()
+    print("✅ WS accepted")
 
-    # STEP 1️⃣ モデル名を最初に受け取る
-    init_data = await websocket.receive_json()
-    model_name = init_data.get("model", "rumina-m2")
-    print(f"📝 モデル名を受け取りました: {model_name}")
-    vad_silence_threshold_ms = init_data.get("vad_silence_threshold", 1000)
-    print(f"✅ VAD silence threshold {vad_silence_threshold_ms} ms")
+    init = await ws.receive_json()
+    model_name = init.get("model", "rumina-m2")
+    vad_silence_ms = init.get("vad_silence_threshold", 1000)
+    print(f"📝 model={model_name}  vad={vad_silence_ms}ms")
 
-    # STEP 2️⃣ モデルに応じたインスタンス選択
-    transcriber_instance = get_transcriber_instance(model_name)
-    # 文字起こし処理開始
-    await transcriber_instance.start()
-    multimodal_response_func = get_multimodal_response_func(model_name)
-    m_tts_instance = get_tts_instance(model_name)
+    # モジュール取得
+    transcriber = get_transcriber_instance(model_name)
+    await transcriber.start()
+    multimodal = get_multimodal_response_func(model_name)
+    tts = get_tts_instance(model_name)
 
-    transcriber_instance.set_silence_threshold(
-        (vad_silence_threshold_ms / 1000.0) - 0.3  # 余裕を持たせる
-    )
+    transcriber.set_silence_threshold(max((vad_silence_ms / 1000) - 0.3, 0.05))
 
-    # ★ 音声バッファ
-    audio_buffer = bytearray()
+    # ────── 状態変数 ──────
+    audio_buf = bytearray()
+    current_task: Optional[UtteranceTask] = None
+    current_speech_id = 0
+    buffer_speech_id = 0  # ★ START〜END 間の ID
+    pending_ids: asyncio.Queue[int] = asyncio.Queue()
 
-    async def receive_audio_and_image():
+    # ────── 音声と画像受信 ──────
+    async def recv_loop():
+        nonlocal current_task, current_speech_id, buffer_speech_id
         while True:
             try:
-                message = await websocket.receive()
+                msg = await ws.receive()
 
-                if message["type"] == "websocket.receive":
-                    if "text" in message:
-                        data = message["text"]
-                        # print(f"🟢 受信 JSON データ: {data}")
-                        data_json = json.loads(data)
+                # === テキスト control ===
+                if msg["type"] == "websocket.receive" and "text" in msg:
+                    data = json.loads(msg["text"])
 
-                        if data_json["type"] == "active_audio_start":
-                            print("🎙️ START")
-                            audio_buffer.clear()
+                    # --- START ---
+                    if data["type"] == "active_audio_start":
+                        current_speech_id += 1
+                        buffer_speech_id = current_speech_id  # ★ save
+                        audio_buf.clear()
+                        print("🎙️ START", current_speech_id)
 
-                            image_base64 = data_json.get("image_base64")
-                            if image_base64:
-                                print("🖼️ 画像データ受信 → 更新")
-                                transcriber_instance.update_latest_image(
-                                    image_base64
-                                )
-                            else:
-                                print("⚠️ image_base64 が含まれていません")
+                        if current_task:
+                            current_task.cancel_event.set()
 
-                        elif data_json["type"] == "active_audio_end":
-                            print("🛑 END, processing audio")
-                            # save_debug_wav(
-                            #     bytes(audio_buffer), prefix="debug_end"
-                            # )
-                            # print(
-                            #     f"📤 audio_buffer size = {len(audio_buffer)} bytes"
-                            # )
+                        if img := data.get("image_base64"):
+                            transcriber.update_latest_image(img)
 
-                            # ここでのみ transcribe_audio_chunk 呼ぶ
-                            await transcriber_instance.transcribe_audio_chunk(
-                                bytes(audio_buffer)
-                            )
-                            print(f"✅ transcribe_audio_chunk 呼び出し完了")
+                    # --- END ---
+                    elif data["type"] == "active_audio_end":
+                        print("🛑 END -> transcribe")
+                        await transcriber.transcribe_audio_chunk(
+                            bytes(audio_buf)
+                        )
+                        await pending_ids.put(buffer_speech_id)  # ★
 
-                    elif "bytes" in message:
-                        pcm_bytes = message["bytes"]
-                        # print(f"🎵 Received {len(pcm_bytes)} bytes (binary)")
-                        audio_buffer.extend(pcm_bytes)
-                        # print(
-                        #     f"🔄 audio_buffer size = {len(audio_buffer)} bytes"
-                        # )
-
-                        # ✅ デバッグ用保存 (Optional)
-                        # if (
-                        #     len(audio_buffer) >= 1024
-                        #     and len(audio_buffer) % 1024 == 0
-                        # ):
-                        # save_debug_wav(
-                        #     bytes(audio_buffer), prefix="debug_chunk"
-                        # )
-                        # print(
-                        #     f"💾 一時デバッグ保存 (size: {len(audio_buffer)} bytes)"
-                        # )
+                # === バイナリ（PCM） ===
+                elif "bytes" in msg:
+                    audio_buf.extend(msg["bytes"])
 
             except Exception as e:
-                print(f"🚨 receive_audio_and_image エラー: {e}")
+                print("recv_loop error:", e)
                 break
 
-    async def transcription_to_response_pipeline():
+    # ────── 転写 → LLM/TTS ──────
+    async def trans_loop():
+        nonlocal current_task, current_speech_id
         while True:
             try:
-                # WhisperSimpleTranscriber に対応
-                transcription = await transcriber_instance.result_queue.get()
-                print(
-                    f"📝 result_queue.get() → {type(transcription)}, 内容: {transcription}"
-                )
+                text = await transcriber.result_queue.get()
+                speech_id = await pending_ids.get()  # ★ 対応ID取得
+                print("📝 text:", text, "sid:", speech_id)
 
-                # transcription が dict なら text を取り出す、str ならそのまま使う
-                if isinstance(transcription, dict):
-                    transcribed_text = transcription.get("text", "")
-                elif isinstance(transcription, str):
-                    transcribed_text = transcription
-                else:
-                    transcribed_text = ""
-                    print(
-                        f"⚠️ transcription の想定外の型: {type(transcription)} → 内容: {transcription}"
-                    )
-
-                # 無効チェック
-                if is_invalid_transcription(transcribed_text):
-                    print("⏭️ 無効な文字起こしをスキップ：", transcribed_text)
+                # 無効 or 空文字スキップ
+                if isinstance(text, dict):
+                    text = text.get("text", "")
+                if is_invalid_transcription(text):
                     continue
 
-                # transcription 送信
-                await websocket.send_json(
-                    {"type": "transcription", "message": transcribed_text}
-                )
+                await ws.send_json({"type": "transcription", "message": text})
 
-                # 履歴構築
-                history_messages = [
+                # 履歴
+                hist = [
                     {
                         "role": "system",
                         "content": "You are a helpful assistant.",
                     }
                 ]
-                history_messages.extend(
-                    conversation_history[-(MAX_HISTORY * 2) :]
-                )
-                history_messages.append(
-                    {"role": "user", "content": transcribed_text}
-                )
+                hist.extend(conversation_history[-MAX_HISTORY * 2 :])
+                hist.append({"role": "user", "content": text})
 
-                latest_image_base64 = transcriber_instance.latest_image_base64
-
-                # モデルに問い合わせ
-                response = await asyncio.to_thread(
-                    multimodal_response_func,
-                    message=transcribed_text,
-                    image_base64=latest_image_base64,
-                    history=history_messages,
+                # タスク生成
+                task = UtteranceTask(
+                    id=f"assistant_{uuid.uuid4().hex[:8]}", speech_id=speech_id
                 )
-
-                # # TTS → base64音声
-                audio_base64 = await asyncio.to_thread(
-                    m_tts_instance.synthesize_to_base64, response
+                current_task = task
+                asyncio.create_task(
+                    handle_utterance(
+                        task, text, transcriber.latest_image_base64, hist
+                    )
                 )
-
-                # 応答送信
-                await websocket.send_json(
-                    {
-                        "type": "ai_response",
-                        "message": response,
-                        "audio_base64": audio_base64,
-                    }
-                )
-
-                # 履歴追加
-                conversation_history.append(
-                    {"role": "user", "content": transcribed_text}
-                )
-                conversation_history.append(
-                    {"role": "assistant", "content": response}
-                )
-
             except Exception as e:
-                print(f"🚨 transcription_to_response_pipeline エラー: {e}")
+                print("trans_loop error:", e)
                 break
 
-    # 並行タスク起動
-    receive_task = asyncio.create_task(receive_audio_and_image())
-    send_task = asyncio.create_task(transcription_to_response_pipeline())
+    # ────── 応答生成 & TTS ──────
+    async def handle_utterance(
+        task: UtteranceTask, user_text: str, img_b64: str | None, hist: list
+    ):
+        nonlocal current_speech_id
+
+        # LLM
+        resp_text = await asyncio.to_thread(
+            multimodal, message=user_text, image_base64=img_b64, history=hist
+        )
+
+        # キャンセル判定①
+        if task.cancel_event.is_set() or task.speech_id != current_speech_id:
+            await ws.send_json(
+                {
+                    "type": "assistant_final",
+                    "id": task.id,
+                    "message": resp_text,
+                    "audio": False,
+                }
+            )
+            return
+
+        # TTS
+        try:
+            audio64 = await asyncio.to_thread(
+                tts.synthesize_to_base64, resp_text
+            )
+        except Exception as e:
+            print("TTS failed:", e)
+            await ws.send_json(
+                {
+                    "type": "assistant_final",
+                    "id": task.id,
+                    "message": resp_text,
+                    "audio": False,
+                }
+            )
+            return
+
+        # キャンセル判定②
+        if task.cancel_event.is_set() or task.speech_id != current_speech_id:
+            await ws.send_json(
+                {
+                    "type": "assistant_final",
+                    "id": task.id,
+                    "message": resp_text,
+                    "audio": False,
+                }
+            )
+        else:
+            await ws.send_json(
+                {
+                    "type": "ai_response",
+                    "id": task.id,
+                    "message": resp_text,
+                    "audio_base64": audio64,
+                }
+            )
+
+        # 履歴追加
+        conversation_history.append(
+            {"role": "assistant", "content": resp_text}
+        )
+        if len(conversation_history) > MAX_HISTORY * 2:
+            conversation_history[:] = conversation_history[-MAX_HISTORY * 2 :]
+
+    # ────── 走らせる ──────
+    recv_task = asyncio.create_task(recv_loop())
+    trans_task = asyncio.create_task(trans_loop())
 
     try:
-        await asyncio.gather(receive_task, send_task)
-    except WebSocketDisconnect as e:
-        print("❌ WebSocket 接続が切断されました。コード:", e.code)
-    except Exception as e:
-        print("🚨 想定外のエラー:", e)
+        await asyncio.gather(recv_task, trans_task)
+    except WebSocketDisconnect:
+        print("❌ WS disconnected")
     finally:
-        receive_task.cancel()
-        send_task.cancel()
-        await transcriber_instance.stop()
-        print("🛑 録音セッション終了")
+        recv_task.cancel()
+        trans_task.cancel()
+        await transcriber.stop()
+        print("🛑 session closed")

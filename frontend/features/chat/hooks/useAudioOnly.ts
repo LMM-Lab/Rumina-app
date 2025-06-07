@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 export type ChatMessage = {
+    id: number;
     text: string;
     isUser: boolean;
+    silent?: boolean;
+    prompt?: string;
 };
 
 export const useAudioOnly = () => {

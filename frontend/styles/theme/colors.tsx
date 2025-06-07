@@ -14,6 +14,7 @@ const colors = {
     chat_area: {
         User: '#C0F177',
         Agent: '#BCC8FC',
+        AgentSilent: '#E9ECF1',
     }
 }
 

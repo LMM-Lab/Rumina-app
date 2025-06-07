@@ -39,7 +39,8 @@ const ChatBox = () => {
         <ChatContainer>
             <Messages>
                 {transcriptions.map((msg, index) => (
-                    <MessageBubble key={index} $isUser={msg.isUser}>
+                    <MessageBubble key={index} $isUser={msg.isUser} $silent={msg.silent}
+                        $prompt={msg.prompt}>
                         {msg.text}
                     </MessageBubble>
                 ))}

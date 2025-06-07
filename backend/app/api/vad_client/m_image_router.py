@@ -166,6 +166,7 @@ async def we_image_endpoint(ws: WebSocket):
                     "id": task.id,
                     "message": resp_text,
                     "audio": False,
+                    "prompt": user_text,
                 }
             )
             return

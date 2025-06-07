@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
 export type ChatMessage = {
+    id: number;
     text: string;
     isUser: boolean;
+    silent?: boolean;
+    prompt?: string;
 };
 
 export const useImageClientVad = (
@@ -159,22 +162,31 @@ export const useImageClientVad = (
             socket.onmessage = async (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    const { type, message, audio_base64 } = data;
+                    const { type, message, audio_base64, id: _id, prompt } = data;
+                    const id = _id ?? Date.now();
 
-                    console.log(`[受信] type: ${type}, message: ${message}`);
+                    console.log(`[受信] type: ${type}, message: ${message}, audio_base64: ${!!audio_base64}, id: ${id}`);
 
                     // === タイピング状態ハンドリング ===
-                    if (type === "transcription") setIsThinking(true);
-                    if (type === "ai_response") setIsThinking(false);
-
-                    if (message) {
-                        setTranscriptions((prev) => {
-                            const newMessage: ChatMessage = {
-                                text: (type === "assistant_final" ? "🔇 " : "") + message,
-                                isUser: type === "transcription"
-                            }
-                            return [...prev, newMessage];
-                        });
+                    if (type === "transcription") {
+                        setTranscriptions(prev => [
+                            ...prev,
+                            { id, text: message, isUser: true }                                // 音声付き
+                        ]);
+                        setIsThinking(true);
+                    }
+                    if (type === "assistant_final") {
+                        setTranscriptions(prev => [
+                            ...prev,
+                            { id, text: message, isUser: false, silent: true, prompt }
+                        ]);
+                    }
+                    if (type === "ai_response") {
+                        setTranscriptions(prev => [
+                            ...prev,
+                            { id, text: message, isUser: false }                                // 音声付き
+                        ]);
+                        setIsThinking(false);
                     }
 
                     if (audio_base64) {

@@ -3,8 +3,11 @@ import { useImageClientVad } from "./useImageClientVad";
 import { useImageServerVad } from "./useImageServerVad";
 
 export type ChatMessage = {
+    id: number;
     text: string;
     isUser: boolean;
+    silent?: boolean;
+    prompt?: string;
 };
 
 export type UseModelMode = "audio" | "image";

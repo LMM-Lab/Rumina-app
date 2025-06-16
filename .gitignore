@@ -19,3 +19,6 @@ next-env.d.ts
 
 
 node_modules/
+
+backend/app/model/tts/*/
+!backend/app/model/tts/.gitkeep

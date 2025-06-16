@@ -1,11 +1,17 @@
 # This module provides functions to select the appropriate instances
 # based on the model name for TTS, transcription, and multimodal response.
+import torch
 from api.modules.transcribers.transcribers import (
     OpenAITranscriber,
     WhisperLocalTranscriber,
 )
-from services.openai_chat import get_chat_response, get_multimodal_response
+from api.modules.tts_wrappers.style_bert_vits2_wrapper import (
+    RuminaStyleBertVITS2Wrapper,
+)
+from services.openai_chat import get_multimodal_response
 from services.tts_generator import TTSGenerator
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def get_transcriber_instance(model_name: str):
@@ -31,12 +37,15 @@ def get_multimodal_response_func(model_name: str):
 
 
 tts_instance = TTSGenerator()
+rumina_tts_instance = RuminaStyleBertVITS2Wrapper(
+    model_dir="/workspace/backend/app/model/tts/richika_v1", device=device
+)
 
 
 def get_tts_instance(model_name: str):
     if model_name == "rumina-m1":
         return tts_instance
     elif model_name == "rumina-m1-pro":
-        return tts_instance
+        return rumina_tts_instance
     else:
         raise ValueError(f"Unsupported model: {model_name}")

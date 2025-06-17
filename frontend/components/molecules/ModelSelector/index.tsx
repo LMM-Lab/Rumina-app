@@ -11,6 +11,7 @@ type ModelSelectorProps = {
 const models = [
     { key: "rumina-m1", label: "M1", description: "視覚入力も対応した標準モデル" },
     { key: "rumina-m1-pro", label: "M1-Pro", description: "音声認識が高精度かつ高速" },
+    { key: "rumina-m1-promax", label: "M1-ProMax", description: "品質が高い応答性能を持つモデ" },
     { key: "rumina-m1-server", label: "m1-server", description: "視覚入力も対応した初期モデル" },
     { key: "rumina-c1-server", label: "c1-server", description: "軽量かつ高速な言語入力のみモデル" },
 ];

@@ -62,15 +62,15 @@ class RuminaStyleBertVITS2Wrapper:
         return base64.b64encode(buffer.read()).decode("utf-8")
 
 
-model_dir = (
-    "/workspace/backend/app/model/tts/richika_v1"  # モデルのディレクトリを指定
-)
-device = "cpu"  # または "cpu"
-wrapper = RuminaStyleBertVITS2Wrapper(model_dir=model_dir, device=device)
+# model_dir = (
+#     "/workspace/backend/app/model/tts/richika_v1"  # モデルのディレクトリを指定
+# )
+# device = "cpu"  # または "cpu"
+# wrapper = RuminaStyleBertVITS2Wrapper(model_dir=model_dir, device=device)
 
-output_wav = "output_test.wav"
-test_text = "こんにちは。私はRuminaです。あなたの声で話しています。"
+# output_wav = "output_test.wav"
+# test_text = "こんにちは。私はRuminaです。あなたの声で話しています。"
 
-wrapper.generate(text=test_text, output_path=output_wav)
+# wrapper.generate(text=test_text, output_path=output_wav)
 
-print(f"✅ 音声が生成されました: {output_wav}")
+# print(f"✅ 音声が生成されました: {output_wav}")

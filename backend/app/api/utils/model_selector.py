@@ -5,6 +5,7 @@ from api.modules.transcribers.transcribers import (
     OpenAITranscriber,
     WhisperLocalTranscriber,
 )
+from api.modules.tts_wrappers.openai_tts import OpenAI_TTS
 from api.modules.tts_wrappers.style_bert_vits2_wrapper import (
     RuminaStyleBertVITS2Wrapper,
 )
@@ -23,6 +24,10 @@ def get_transcriber_instance(model_name: str):
         print("🔊 OpenAITranscriber を使用")
         openai_transcriber = OpenAITranscriber()
         return openai_transcriber
+    elif model_name == "rumina-m1-promax":
+        print("🔊 OpenAITranscriber を使用")
+        openai_transcriber = OpenAITranscriber()
+        return openai_transcriber
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -32,6 +37,8 @@ def get_multimodal_response_func(model_name: str):
         return get_multimodal_response
     elif model_name == "rumina-m1-pro":
         return get_multimodal_response
+    elif model_name == "rumina-m1-promax":
+        return get_multimodal_response
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -40,6 +47,7 @@ tts_instance = TTSGenerator()
 rumina_tts_instance = RuminaStyleBertVITS2Wrapper(
     model_dir="/workspace/backend/app/model/tts/richika_v1", device=device
 )
+openai_tts_instance = OpenAI_TTS()
 
 
 def get_tts_instance(model_name: str):
@@ -47,5 +55,7 @@ def get_tts_instance(model_name: str):
         return tts_instance
     elif model_name == "rumina-m1-pro":
         return rumina_tts_instance
+    elif model_name == "rumina-m1-promax":
+        return openai_tts_instance
     else:
         raise ValueError(f"Unsupported model: {model_name}")

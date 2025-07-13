@@ -10,10 +10,12 @@ import numpy as np
 import scipy.io.wavfile as wav
 from api.utils.invalid_transcription import is_invalid_transcription
 from api.utils.model_selector import (
-    get_multimodal_response_func,
+    get_response_instance,
     get_transcriber_instance,
     get_tts_instance,
 )
+from api.utils.model_set import make_set_id
+from db.session import get_pool
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
@@ -54,8 +56,45 @@ async def we_image_endpoint(ws: WebSocket):
     # モジュール取得
     transcriber = get_transcriber_instance(model_name)
     await transcriber.start()
-    multimodal = get_multimodal_response_func(model_name)
+    vlm = get_response_instance(model_name)
     tts = get_tts_instance(model_name)
+
+    # model 情報をログ出力
+    print(f"STT_name: {transcriber.model_name}")
+    print(f"TTS_name: {tts.model_name}")
+    print(f"VLM_name: {vlm.model_name}")
+
+    # モデル ID を取得
+    stt_id = transcriber.model_name
+    tts_id = tts.model_name
+    vlm_id = vlm.model_name
+
+    # ────── モデルセットの upsert ──────
+    # 再現可能な set_id を作成
+    set_id = make_set_id(
+        stt_id=stt_id,
+        vlm_id=vlm_id,
+        tts_id=tts_id,
+        filler_id=None,
+        set_type="single",
+    )
+
+    # DB に upsert（なければ INSERT、あればスキップ）
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """
+                INSERT INTO model_set_catalog (set_id, set_type, stt_id, vlm_id, tts_id)
+                VALUES ($1, 'single', $2, $3, $4)
+                ON CONFLICT (set_id) DO NOTHING
+                """,
+                set_id,
+                stt_id,
+                vlm_id,
+                tts_id,
+            )
+            print(f"Model set upserted: {set_id}")
 
     transcriber.set_silence_threshold(max((vad_silence_ms / 1000) - 0.3, 0.05))
 
@@ -154,8 +193,10 @@ async def we_image_endpoint(ws: WebSocket):
         nonlocal current_speech_id
 
         # LLM
-        resp_text = await asyncio.to_thread(
-            multimodal, message=user_text, image_base64=img_b64, history=hist
+        resp_text = await vlm.generate(
+            message=user_text,
+            image_base64=img_b64,
+            history=hist,
         )
 
         # キャンセル判定①

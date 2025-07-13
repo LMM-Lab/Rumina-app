@@ -11,3 +11,5 @@ transformers
 git-lfs
 soundfile
 style_bert_vits2
+asyncpg
+pydantic_settings

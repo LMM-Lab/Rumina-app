@@ -16,6 +16,8 @@ from numpy.typing import NDArray
 
 # ---------- 共通基底 ----------
 class BaseTranscriber(ABC):
+    _model_name: str
+
     def __init__(self, sample_rate: int = 16000):
         self.sample_rate = sample_rate
         self.result_queue: asyncio.Queue[str] = asyncio.Queue()
@@ -45,13 +47,18 @@ class BaseTranscriber(ABC):
     def update_latest_image(self, image_base64: str):
         self.latest_image_base64 = image_base64
 
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
 
 # ---------- ① 既存ローカル Whisper ----------
 class WhisperLocalTranscriber(BaseTranscriber):
-    def __init__(self, sample_rate: int = 16000):
+    def __init__(self, sample_rate: int = 16000, name: str = "base"):
         super().__init__(sample_rate)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = whisper.load_model("base", device=device)
+        self.model = whisper.load_model(name, device=device)
+        self._model_name = f"whisper_{name}"
 
     async def transcribe_audio_chunk(self, pcm_chunk: bytes):
         np_chunk = np.frombuffer(pcm_chunk, dtype=np.int16)
@@ -85,7 +92,8 @@ class OpenAITranscriber(BaseTranscriber):
         model: str = "gpt-4o-transcribe",
     ):
         super().__init__(sample_rate)
-        self.model_name = model
+        self.model = model
+        self._model_name = model
 
     async def transcribe_audio_chunk(self, pcm_chunk: bytes):
         np_chunk = np.frombuffer(pcm_chunk, dtype=np.int16)

@@ -2,16 +2,29 @@ import base64
 import os
 from typing import Optional
 
+import tiktoken
 from dotenv import load_dotenv
 from openai import OpenAI
 
 from .base import BaseVLM
+from .tokenizer import register_tokenizer
+from .types import GenerationResult
 
 load_dotenv()
 
 # OpenAIのAPIキー
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_clinet = OpenAI(api_key=OPENAI_API_KEY)
+
+# ---- tokenizer 登録 -------------------------------------------------
+_enc = tiktoken.encoding_for_model("gpt-4o")
+
+
+def _tok_openai(text: str):
+    return _enc.encode(text)
+
+
+register_tokenizer("gpt-4o", _tok_openai)
 
 
 class OpenAIVLM(BaseVLM):
@@ -33,7 +46,7 @@ class OpenAIVLM(BaseVLM):
             "必要以上に丁寧すぎず、自然な口調でカジュアルに答えてください。"
             "ユーザーの発言が画像に関係ない場合、視覚情報には言及せず、テキストだけで返答してください。"
         ),
-    ) -> str:
+    ) -> GenerationResult:
         # Base64文字列からプレフィックス（例: data:image/jpeg;base64,）を取り除く
         if image_base64:
             if image_base64.startswith("data:image"):
@@ -79,4 +92,15 @@ class OpenAIVLM(BaseVLM):
             max_tokens=500,
             temperature=1,
         )
-        return response.choices[0].message.content.strip()
+
+        # ---------- トークン数計測 ----------
+        prompt_tokens = await self.count_tokens(message)
+        completion_tokens = await self.count_tokens(
+            response.choices[0].message.content.strip()
+        )
+
+        return GenerationResult(
+            content=response.choices[0].message.content.strip(),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )

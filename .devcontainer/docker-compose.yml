@@ -11,8 +11,28 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ..:/workspace:cached
+      - ../:/workspace:cached
+      - ../backend/app/db/logs:/workspace/backend/app/db/logs:rw
     command: sleep infinity
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-    # command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--reload"]
+      - DB_URL=postgresql://rumina:rumina@db:5432/rumina
+    depends_on:
+      - db
+  # command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--reload"]
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rumina
+      POSTGRES_PASSWORD: rumina
+      POSTGRES_DB: rumina
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../database/migrations:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  pgdata:

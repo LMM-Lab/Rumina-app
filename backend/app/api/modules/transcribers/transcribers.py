@@ -1,11 +1,11 @@
 import asyncio
 import contextlib
 import io
-import os
 import tempfile
 import uuid
 import wave
 from abc import ABC, abstractmethod
+from typing import Any
 
 import numpy as np
 import openai
@@ -16,9 +16,11 @@ from numpy.typing import NDArray
 
 # ---------- 共通基底 ----------
 class BaseTranscriber(ABC):
+    _model_name: str
+
     def __init__(self, sample_rate: int = 16000):
         self.sample_rate = sample_rate
-        self.result_queue: asyncio.Queue[str] = asyncio.Queue()
+        self.result_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._silence_trim_duration = 0.0
         self.latest_image_base64: str | None = None
 
@@ -29,7 +31,32 @@ class BaseTranscriber(ABC):
         print("⛔ Transcriber stopped")
 
     @abstractmethod
-    async def transcribe_audio_chunk(self, pcm_chunk: bytes): ...
+    async def _transcribe_impl(self, pcm_chunk: bytes) -> str:
+        """
+        サブクラスはここだけ実装する。
+        pcm_chunk → transcription_text を返す。
+        """
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    async def transcribe_audio_chunk(self, pcm_chunk: bytes):
+        # ① 計測開始
+        start = asyncio.get_event_loop().time()
+
+        # ② 実際の音声→文字起こしを呼び出し
+        text = await self._transcribe_impl(pcm_chunk)
+
+        # ③ 計測終了＆ms に変換
+        latency_ms = int((asyncio.get_event_loop().time() - start) * 1000)
+
+        print("⏱️ 音声→文字起こし時間:", latency_ms, "ms")
+
+        # ④ 結果キューに {'text':…, 'latency_ms':…} を流す
+        await self.result_queue.put(
+            {
+                "text": text,
+                "latency_ms": latency_ms,
+            }
+        )
 
     # 共通ユーティリティ
     def _trim_tail_silence(
@@ -45,16 +72,23 @@ class BaseTranscriber(ABC):
     def update_latest_image(self, image_base64: str):
         self.latest_image_base64 = image_base64
 
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
 
 # ---------- ① 既存ローカル Whisper ----------
 class WhisperLocalTranscriber(BaseTranscriber):
-    def __init__(self, sample_rate: int = 16000):
+    def __init__(self, sample_rate: int = 16000, name: str = "base"):
         super().__init__(sample_rate)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = whisper.load_model("base", device=device)
+        self.model = whisper.load_model(name, device=device)
+        self._model_name = f"whisper_{name}"
 
-    async def transcribe_audio_chunk(self, pcm_chunk: bytes):
+    async def _transcribe_impl(self, pcm_chunk: bytes) -> str:
+
         np_chunk = np.frombuffer(pcm_chunk, dtype=np.int16)
+
         # Save tmp WAV for Whisper
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             wav_path = f.name
@@ -70,11 +104,7 @@ class WhisperLocalTranscriber(BaseTranscriber):
             language="ja",
             fp16=torch.cuda.is_available(),
         )
-        transcription_text = str(result["text"])
-
-        print("🔡 文字起こし結果:", transcription_text)
-        os.unlink(wav_path)
-        await self.result_queue.put(transcription_text)
+        return str(result["text"])
 
 
 # ---------- ② OpenAI 一括 STT ----------
@@ -85,12 +115,13 @@ class OpenAITranscriber(BaseTranscriber):
         model: str = "gpt-4o-transcribe",
     ):
         super().__init__(sample_rate)
-        self.model_name = model
+        self.model = model
+        self._model_name = model
 
-    async def transcribe_audio_chunk(self, pcm_chunk: bytes):
+    async def _transcribe_impl(self, pcm_chunk: bytes) -> str:
         np_chunk = np.frombuffer(pcm_chunk, dtype=np.int16)
-        # WAV → in-memory BytesIO (OpenAI wants a "file"-like obj with .name)
         buf = io.BytesIO()
+
         with contextlib.closing(wave.open(buf, "wb")) as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
@@ -102,11 +133,9 @@ class OpenAITranscriber(BaseTranscriber):
         resp = await asyncio.to_thread(
             openai.audio.transcriptions.create,
             file=buf,
-            model=self.model_name,
+            model=self._model_name,
         )
-        transcription_text = resp.text
-        print("🔡 文字起こし結果(OpenAI):", transcription_text)
-        await self.result_queue.put(transcription_text)
+        return resp.text
 
 
 # ---------- ③ ヘルパ ----------

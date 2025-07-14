@@ -11,8 +11,10 @@ add_safe_globals([RAdam, defaultdict, dict])
 
 from TTS.api import TTS
 
+from .base_tts import BaseTTS
 
-class TTSGenerator:
+
+class TTSGenerator(BaseTTS):
     _init_lock = threading.Lock()
 
     def __init__(self):
@@ -61,6 +63,14 @@ class TTSGenerator:
         # ---------- 正常終了 ----------
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
+
+    @property
+    def model_name(self) -> str:
+        """
+        TTSモデルの名前を返す
+        :return: モデル名
+        """
+        return "kokoro_tts"
 
 
 # if __name__ == "__main__":

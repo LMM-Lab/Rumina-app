@@ -6,6 +6,8 @@ import soundfile as sf
 import style_bert_vits2.nlp.bert_models as bert_models
 from style_bert_vits2.constants import Languages
 
+from .base_tts import BaseTTS
+
 bert_models.DEFAULT_BERT_TOKENIZER_PATHS[Languages.JP] = Path(
     "/usr/local/lib/python3.10/dist-packages/style_bert_vits2/bert/deberta-v2-large-japanese-char-wwm"
 )
@@ -21,7 +23,7 @@ from style_bert_vits2.constants import (
 from style_bert_vits2.tts_model import TTSModel
 
 
-class RuminaStyleBertVITS2Wrapper:
+class RuminaStyleBertVITS2Wrapper(BaseTTS):
     def __init__(self, model_dir: str, device: str = "cuda"):
         model_path = Path(model_dir) / "G_2900.pth"
         config_path = Path(model_dir) / "config.json"
@@ -60,6 +62,14 @@ class RuminaStyleBertVITS2Wrapper:
         sf.write(buffer, audio, sr, format="WAV")
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
+
+    @property
+    def model_name(self) -> str:
+        """
+        TTSモデルの名前を返す
+        :return: モデル名
+        """
+        return "style_bert_vits2"
 
 
 # model_dir = (

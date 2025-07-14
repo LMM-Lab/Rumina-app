@@ -11,7 +11,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ..:/workspace:cached
+      - ../:/workspace:cached
+      - ../backend/app/db/logs:/workspace/backend/app/db/logs:rw
     command: sleep infinity
     environment:
       - NVIDIA_VISIBLE_DEVICES=all

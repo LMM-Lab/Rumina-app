@@ -1,6 +1,4 @@
 import asyncio
-import base64
-import io
 import json
 import uuid
 from dataclasses import dataclass, field
@@ -8,6 +6,7 @@ from typing import Optional
 
 import numpy as np
 import scipy.io.wavfile as wav
+from api.modules.response_generation.vlm.types import GenerationResult
 from api.utils.invalid_transcription import is_invalid_transcription
 from api.utils.model_selector import (
     get_response_instance,
@@ -15,6 +14,7 @@ from api.utils.model_selector import (
     get_tts_instance,
 )
 from api.utils.model_set import make_set_id
+from asyncpg import Pool
 from db.session import get_pool
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -48,6 +48,9 @@ async def we_image_endpoint(ws: WebSocket):
     await ws.accept()
     print("✅ WS accepted")
 
+    session_id = str(uuid.uuid4())
+    turn_index = 0
+
     init = await ws.receive_json()
     model_name = init.get("model", "rumina-m2")
     vad_silence_ms = init.get("vad_silence_threshold", 1000)
@@ -70,8 +73,8 @@ async def we_image_endpoint(ws: WebSocket):
     vlm_id = vlm.model_name
 
     # ────── モデルセットの upsert ──────
-    # 再現可能な set_id を作成
-    set_id = make_set_id(
+    # 再現可能な model_set_id を作成
+    model_set_id = make_set_id(
         stt_id=stt_id,
         vlm_id=vlm_id,
         tts_id=tts_id,
@@ -80,7 +83,7 @@ async def we_image_endpoint(ws: WebSocket):
     )
 
     # DB に upsert（なければ INSERT、あればスキップ）
-    pool = await get_pool()
+    pool: Pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
             await conn.execute(
@@ -89,12 +92,12 @@ async def we_image_endpoint(ws: WebSocket):
                 VALUES ($1, 'single', $2, $3, $4)
                 ON CONFLICT (set_id) DO NOTHING
                 """,
-                set_id,
+                model_set_id,
                 stt_id,
                 vlm_id,
                 tts_id,
             )
-            print(f"Model set upserted: {set_id}")
+            print(f"Model set upserted: {model_set_id}")
 
     transcriber.set_silence_threshold(max((vad_silence_ms / 1000) - 0.3, 0.05))
 
@@ -119,7 +122,7 @@ async def we_image_endpoint(ws: WebSocket):
                     # --- START ---
                     if data["type"] == "active_audio_start":
                         current_speech_id += 1
-                        buffer_speech_id = current_speech_id  # ★ save
+                        buffer_speech_id = current_speech_id
                         audio_buf.clear()
                         print("🎙️ START", current_speech_id)
 
@@ -135,7 +138,7 @@ async def we_image_endpoint(ws: WebSocket):
                         await transcriber.transcribe_audio_chunk(
                             bytes(audio_buf)
                         )
-                        await pending_ids.put(buffer_speech_id)  # ★
+                        await pending_ids.put(buffer_speech_id)
 
                 # === バイナリ（PCM） ===
                 elif "bytes" in msg:
@@ -147,10 +150,13 @@ async def we_image_endpoint(ws: WebSocket):
 
     # ────── 転写 → LLM/TTS ──────
     async def trans_loop():
-        nonlocal current_task, current_speech_id
+        nonlocal current_task, current_speech_id, turn_index
         while True:
             try:
-                text = await transcriber.result_queue.get()
+                result = await transcriber.result_queue.get()
+                text = result["text"]
+                stt_latency = result["latency_ms"]
+                print(f"🔡 STT latency: {stt_latency}ms, text={text}")
                 speech_id = await pending_ids.get()  # ★ 対応ID取得
                 print("📝 text:", text, "sid:", speech_id)
 
@@ -177,9 +183,18 @@ async def we_image_endpoint(ws: WebSocket):
                     id=f"assistant_{uuid.uuid4().hex[:8]}", speech_id=speech_id
                 )
                 current_task = task
+                turn_index += 1
                 asyncio.create_task(
                     handle_utterance(
-                        task, text, transcriber.latest_image_base64, hist
+                        task,
+                        text,
+                        transcriber.latest_image_base64,
+                        hist,
+                        session_id,
+                        turn_index,
+                        model_set_id,
+                        pool,
+                        stt_latency,
                     )
                 )
             except Exception as e:
@@ -188,16 +203,35 @@ async def we_image_endpoint(ws: WebSocket):
 
     # ────── 応答生成 & TTS ──────
     async def handle_utterance(
-        task: UtteranceTask, user_text: str, img_b64: str | None, hist: list
+        task: UtteranceTask,
+        user_text: str,
+        img_b64: str | None,
+        hist: list,
+        session_id: str,
+        turn_index: int,
+        model_set_id: str,
+        pool: Optional[Pool],
+        stt_latency: int,
     ):
         nonlocal current_speech_id
 
         # LLM
-        resp_text = await vlm.generate(
+        vlm_start = asyncio.get_event_loop().time()
+        result: GenerationResult = await vlm.generate(
             message=user_text,
             image_base64=img_b64,
             history=hist,
         )
+        vlm_latency = int((asyncio.get_event_loop().time() - vlm_start) * 1000)
+
+        vlm_tokens_in = result.prompt_tokens
+        vlm_tokens_out = result.completion_tokens
+
+        vlm_tok_per_sec = (
+            vlm_tokens_out / (vlm_latency / 1000) if vlm_latency > 0 else None
+        )
+
+        resp_text = result.content
 
         # キャンセル判定①
         if task.cancel_event.is_set() or task.speech_id != current_speech_id:
@@ -213,6 +247,8 @@ async def we_image_endpoint(ws: WebSocket):
             return
 
         # TTS
+        tts_start = asyncio.get_event_loop().time()
+        tts_latency = None
         try:
             audio64 = await asyncio.to_thread(
                 tts.synthesize_to_base64, resp_text
@@ -240,6 +276,11 @@ async def we_image_endpoint(ws: WebSocket):
                 }
             )
         else:
+
+            tts_latency = int(
+                (asyncio.get_event_loop().time() - tts_start) * 1000
+            )
+            print(f"🎵 TTS latency: {tts_latency}ms")
             await ws.send_json(
                 {
                     "type": "ai_response",
@@ -255,6 +296,67 @@ async def we_image_endpoint(ws: WebSocket):
         )
         if len(conversation_history) > MAX_HISTORY * 2:
             conversation_history[:] = conversation_history[-MAX_HISTORY * 2 :]
+
+        # --- 総ターンレイテンシー ---
+        if tts_latency is None:
+            total_latency = stt_latency + vlm_latency
+        else:
+            total_latency = stt_latency + vlm_latency + tts_latency
+
+        # ———— DB へログ挿入 ————
+        if pool is not None:
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO single_turns (
+                    request_id,
+                    session_id,
+                    turn_index,
+                    timestamp_utc,
+                    model_set_id,
+
+                    stt_latency_ms,
+                    transcript,
+
+                    vlm_latency_ms,
+                    vlm_tokens_in,
+                    vlm_tokens_out,
+                    vlm_tok_per_sec,
+
+                    tts_latency_ms,
+
+                    total_turn_latency_ms,
+                    net_up_ms,
+                    net_down_ms,
+                    error_flag
+                    ) VALUES (
+                    gen_random_uuid()::text,
+                    $1, $2, now(), $3,
+
+                    $4, $5,
+
+                    $6, $7, $8, $9,
+
+                    $10,
+
+                    $11, NULL, NULL, NULL
+                    )
+                    """,
+                    # $1…$10 の対応
+                    session_id,  # $1
+                    turn_index,  # $2
+                    model_set_id,  # $3
+                    stt_latency,  # $4: stt_latency_ms
+                    user_text,  # $5: transcript
+                    vlm_latency,  # $6
+                    vlm_tokens_in,  # $7: vlm_tokens_in 仮
+                    vlm_tokens_out,  # $8: vlm_tokens_out 仮
+                    vlm_tok_per_sec,  # $9: vlm_tok_per_sec
+                    tts_latency,  # $10: tts_latency_ms
+                    total_latency,  # $11: total_turn_latency_ms
+                )
+        else:
+            print("DB pool is None, skipping DB insert.")
 
     # ────── 走らせる ──────
     recv_task = asyncio.create_task(recv_loop())

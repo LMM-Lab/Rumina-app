@@ -30,6 +30,10 @@ def get_transcriber_instance(model_name: str):
         print("🔊 OpenAITranscriber を使用")
         openai_transcriber = OpenAITranscriber()
         return openai_transcriber
+    elif model_name == "rumina-m2":
+        print("🔊 WhisperLocalTranscriber を使用")
+        whisper_transcriber = OpenAITranscriber()  # TODO: 後で変更
+        return whisper_transcriber
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -42,6 +46,9 @@ def get_response_instance(model_name: str):
         openai_instance = OpenAIVLM("gpt-4o")
         return openai_instance
     elif model_name == "rumina-m1-promax":
+        openai_instance = OpenAIVLM("gpt-4o")
+        return openai_instance
+    elif model_name == "rumina-m2":
         openai_instance = OpenAIVLM("gpt-4o")
         return openai_instance
     else:
@@ -62,5 +69,7 @@ def get_tts_instance(model_name: str) -> BaseTTS:
         return rumina_tts_instance
     elif model_name == "rumina-m1-promax":
         return openai_tts_instance
+    elif model_name == "rumina-m2":
+        return openai_tts_instance  # TODO: 後で変更
     else:
         raise ValueError(f"Unsupported model: {model_name}")

@@ -12,7 +12,9 @@ export const getModeFromModel = (modelKey: string): {
         case "rumina-m1-pro":
             return { Mode: "image", vadMode: "client-vad", modelKey };
         case "rumina-m1-promax":
-            return { Mode: "image", vadMode: "client-vad", modelKey }
+            return { Mode: "image", vadMode: "client-vad", modelKey };
+        case "rumina-m2":
+            return { Mode: "image", vadMode: "client-vad", modelKey };
         case "rumina-m1-server":
             return { Mode: "image", vadMode: "server-vad", modelKey };
         case "rumina-c1-server":

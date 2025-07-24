@@ -146,7 +146,7 @@ export const useImageClientVad = (
 
             source.connect(analyser);
 
-            const socket = new WebSocket("ws://localhost:8000/ws/m/image");
+            const socket = new WebSocket("ws://192.168.29.19:8000/ws/m/image");
             socket.binaryType = "arraybuffer";
             socketRef.current = socket;
 

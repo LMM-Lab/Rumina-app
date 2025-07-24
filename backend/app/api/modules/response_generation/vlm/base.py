@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import AsyncIterator, Dict, List, Optional
 
 from .tokenizer import get_tokenizer
 from .types import GenerationResult
@@ -22,4 +22,15 @@ class BaseVLM(ABC):
         history: List[Dict[str, str]],
         image_base64: Optional[str] = None,
     ) -> GenerationResult:
-        """テキスト／マルチモーダル応答を返す（非同期でも同期でも可）"""
+        """全文（完了形）を返す。"""
+        ...
+
+    @abstractmethod
+    async def stream_generate(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        image_base64: Optional[str] = None,
+    ) -> AsyncIterator[str]:
+        """トークンまたは文チャンクを ``async for`` で逐次返す。"""
+        ...

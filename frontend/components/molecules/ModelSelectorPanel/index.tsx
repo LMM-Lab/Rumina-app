@@ -8,10 +8,41 @@ import Tooltip from "@components/atoms/Tooltip";
 
 const FaCheckIcon: IconType = FaCheck;
 
+export type ModelBadge = "beta" | "new" | "deprecated" | "preview";
+
 type ModelSelectorPanelProps = {
-    models: { key: string; label: string; description: string }[];
+    models: { key: string; label: string; description: string; badge?: ModelBadge; }[];
     selectedModel: string;
     onSelect: (modelKey: string) => void;
+};
+
+const badgeStyle: Record<ModelBadge, { bg: string; text: string }> = {
+    beta: { bg: "#D3E3FD", text: "#4285F4" }, // 青 + 白文字
+    new: { bg: "#16A34A", text: "#FFFFFF" }, // 緑 + 白文字
+    deprecated: { bg: "#9CA3AF", text: "#FFFFFF" }, // グレー + 白文字
+    preview: { bg: "#FFE8C4", text: "#B7701D" }, // 薄オレンジ + ダーク文字
+    // ↑ 適当に付けた色なのでこの数値を好きに変えて OK
+};
+
+export const ModelBadge = ({ type }: { type: ModelBadge }) => {
+    const { bg, text } = badgeStyle[type];
+
+    return (
+        <span
+            style={{
+                display: "inline-block",
+                padding: "2px 8px",
+                fontSize: "13px",
+                fontWeight: 600,
+                lineHeight: 1,
+                color: text,
+                backgroundColor: bg,
+                borderRadius: 9999,
+            }}
+        >
+            {type.charAt(0).toUpperCase() + type.slice(1)}
+        </span>
+    );
 };
 
 export const ModelSelectorPanel = ({ models, selectedModel, onSelect }: ModelSelectorPanelProps) => {
@@ -83,11 +114,17 @@ export const ModelSelectorPanel = ({ models, selectedModel, onSelect }: ModelSel
                             fontSize: "16px",
                         }}
                     >
-                        <div>
-                            <div>{model.label}</div>
-                            <div style={{ fontSize: "13px", color: "#888", marginTop: "2px" }}>
-                                {model.description}
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                            {/* タイトル行（M2 と Beta を横並び） */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <span style={{ fontSize: "16px" }}>{model.label}</span>
+                                {model.badge && <ModelBadge type={model.badge} />}
                             </div>
+
+                            {/* 説明文 */}
+                            <span style={{ fontSize: "13px", color: "#888", marginTop: "2px" }}>
+                                {model.description}
+                            </span>
                         </div>
 
                         {/* デバッグ表示

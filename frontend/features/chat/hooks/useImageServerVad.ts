@@ -74,7 +74,7 @@ export const useImageServerVad = () => {
             const audioContext = new AudioContext({ sampleRate: 16000 });
             audioContextRef.current = audioContext;
 
-            const socket = new WebSocket("ws://localhost:8000/ws/image");
+            const socket = new WebSocket("ws://192.168.29.19/8000/ws/image");
             socket.binaryType = "arraybuffer";
             socketRef.current = socket;
 

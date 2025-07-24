@@ -1,6 +1,7 @@
 import { useAudioOnly } from "./useAudioOnly";
 import { useImageClientVad } from "./useImageClientVad";
 import { useImageServerVad } from "./useImageServerVad";
+import { useImageClientVadStream } from "./useImageClientVadStream";
 
 export type ChatMessage = {
     id: number;
@@ -25,11 +26,17 @@ export const useModel = (
     vadMode: vadMode = "client-vad",
     modelKey: string = "rumina-m1"
 ): UseModelHook => {
+    console.debug("[useModel] modelKey =", modelKey,
+        "| mode =", modelMode, "| vad =", vadMode);
     if (modelMode === "image") {
         if (vadMode === "server-vad") {
             return useImageServerVad();
         } else {
-            return useImageClientVad(modelKey);
+            if (modelKey.includes("rumina-m2")) {
+                return useImageClientVadStream(modelKey);
+            } else {
+                return useImageClientVad(modelKey);
+            }
         }
     } else {
         return useAudioOnly();

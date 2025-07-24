@@ -5,6 +5,7 @@ import { getModeFromModel } from "../utils/getModeFromModel";
 import { useAudioOnly } from "../hooks/useAudioOnly";
 import { useImageClientVad } from "../hooks/useImageClientVad";
 import { useImageServerVad } from "../hooks/useImageServerVad";
+import { useImageClientVadStream } from "../hooks/useImageClientVadStream";
 import { ChatMessage } from "../hooks/useModel";
 import { useRef } from "react";
 
@@ -27,7 +28,8 @@ export const AudioChatProvider = ({ children }: { children: ReactNode }) => {
     const { Mode, vadMode, modelKey } = useMemo(() => getModeFromModel(selectedModel), [selectedModel]);
 
     const audioHook = useAudioOnly();
-    const imageClientHook = useImageClientVad(modelKey);
+    const imageClientSyncHook = useImageClientVad(modelKey);
+    const imageClientStreamHook = useImageClientVadStream(modelKey);
     const imageServerHook = useImageServerVad();
 
     // 🔥 ① 前回の hookToUse を useRef に保持する
@@ -41,12 +43,16 @@ export const AudioChatProvider = ({ children }: { children: ReactNode }) => {
     if (Mode === "audio") {
         hookToUse = audioHook;
     } else {
-        hookToUse = vadMode === "server-vad" ? imageServerHook : imageClientHook;
+        hookToUse = modelKey.includes("rumina-m2") ? imageClientStreamHook : imageClientSyncHook;
     }
 
     const { isRecording, toggleRecording, transcriptions, isThinking, isVoiceActive } = hookToUse;
 
     const modeKey = `${Mode}-${vadMode}`;
+
+    console.debug("[AudioChatProvider] selectedModel =", selectedModel,
+        "| Mode =", Mode, "| vadMode =", vadMode,
+        "| modelKey =", modelKey);
 
     // 🔥 ③ モードが変わったときに「前回 hook を停止」する useEffect
     useEffect(() => {
